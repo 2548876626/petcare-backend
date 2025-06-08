@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  phone         String?
+  avatar        String?
+  role          Role      @default(PET_OWNER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  pets          Pet[]
+  services      Service[]
+  bookingsAsPetOwner    Booking[] @relation("PetOwnerBookings")
+  bookingsAsProvider    Booking[] @relation("ProviderBookings")
+  reviews       Review[]
+}
+
+// 宠物模型
+model Pet {
+  id            String    @id @default(uuid())
+  name          String
+  type          String
+  breed         String?
+  age           Int?
+  gender        String?
+  weight        Float?
+  description   String?
+  avatar        String?
+  medicalRecord String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+}
+
+// 服务模型
+model Service {
+  id            String    @id @default(uuid())
+  title         String
+  description   String
+  price         Float
+  duration      Int       // 服务时长（小时）
+  capacity      Int       // 可同时接待宠物数量
+  images        String[]
+  address       String?
+  location      Json?     // 经纬度坐标
+  status        ServiceStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  providerId    String
+  provider      User      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+  reviews       Review[]
+}
+
+// 预约模型
+model Booking {
+  id            String    @id @default(uuid())
+  startDate     DateTime
+  endDate       DateTime
+  status        BookingStatus @default(PENDING)
+  totalPrice    Float
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  petOwnerId    String
+  petOwner      User      @relation("PetOwnerBookings", fields: [petOwnerId], references: [id])
+  providerId    String
+  provider      User      @relation("ProviderBookings", fields: [providerId], references: [id])
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id])
+  petId         String
+  pet           Pet       @relation(fields: [petId], references: [id])
+  review        Review?
+}
+
+// 评价模型
+model Review {
+  id            String    @id @default(uuid())
+  rating        Int       // 1-5星
+  comment       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// 消息模型
+model Message {
+  id            String    @id @default(uuid())
+  content       String
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  // 关联
+  senderId      String
+  receiverId    String
+}
+
+// 枚举类型
+enum Role {
+  PET_OWNER
+  SERVICE_PROVIDER
+  ADMIN
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_REVIEW
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+} 
